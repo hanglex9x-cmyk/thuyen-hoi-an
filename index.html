@@ -410,6 +410,25 @@
   }
   .show-panel-btn:hover,.show-panel-btn:focus-visible{opacity:1}
   .stage.panel-hidden .show-panel-btn{display:flex}
+  /* ---------- Chế độ nhẹ (lite mode): chống lag trên máy yếu ----------
+     Bật lên thì tắt/bớt các lớp vẽ tốn kém nhất — sương, ánh nhấp
+     nháy, tia lửa, bóng đổ (drop-shadow), vệt pháo hoa, hiệu ứng
+     mờ nền — mà không động tới thuyền, đèn, quà hay âm thanh. Mặc
+     định TẮT, trang chạy đầy đủ như cũ; tắt đi thì mọi hiệu ứng về
+     lại ngay vì các quy tắc dưới đây chỉ có hiệu lực khi có class
+     lite-mode trên .stage. */
+  .stage.lite-mode .twinkle,.stage.lite-mode .mist,.stage.lite-mode .shimmer,
+  .stage.lite-mode #sparks,.stage.lite-mode .halo,.stage.lite-mode .boat-wake{display:none}
+  .stage.lite-mode .bg img,.stage.lite-mode .hl,.stage.lite-mode .spark,
+  .stage.lite-mode .fl .flame,.stage.lite-mode .boat-inner,.stage.lite-mode .oar,
+  .stage.lite-mode .bow-lamp,.stage.lite-mode .walker svg,.stage.lite-mode .walker .wleg{animation:none !important}
+  .stage.lite-mode .hl .body,.stage.lite-mode .fl .lotus,
+  .stage.lite-mode .fl.fresh .lotus,.stage.lite-mode .fl.gift .lotus,
+  .stage.lite-mode .boat-svg{filter:none}
+  .stage.lite-mode .fl .tag,.stage.lite-mode .boat-label,.stage.lite-mode .walker-label,
+  .stage.lite-mode .live{box-shadow:none}
+  .stage.lite-mode .viewers,.stage.lite-mode .icon-btn,.stage.lite-mode .speaking{backdrop-filter:none}
+  body.lite-mode::before{filter:brightness(.42) saturate(1.15);transform:none}
   .stats{display:flex;gap:10px;align-items:center;margin-bottom:9px}
   .stat{font-size:12px;color:#cfd8ea;white-space:nowrap}
   .stat b{display:block;font-size:16px;color:#fff;line-height:1.1}
@@ -477,6 +496,10 @@
   }
   .music-btn.stop{background:rgba(255,255,255,.12);color:var(--ink);border:1px solid rgba(255,255,255,.22);box-shadow:none;font-weight:600}
   .music-btn:active{transform:translateY(1px)}
+  .music-vol{display:flex;align-items:center;gap:9px;margin-top:9px}
+  .music-vol label{font-size:11.5px;color:#9fb0c9;white-space:nowrap;flex:none}
+  .music-vol input[type="range"]{flex:1;min-width:0;accent-color:#ffb648;cursor:pointer}
+  .music-vol output{font-size:12px;font-weight:700;color:#ffe9bd;flex:none;min-width:36px;text-align:right}
   .music-msg{margin:7px 2px 0;font-size:11.5px;line-height:1.5;color:#9fb0c9}
   .music-msg.err{color:#ffb3b8}
   #ytPlayerWrap{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}
@@ -638,6 +661,7 @@
     <button class="icon-btn" id="pauseBtn" type="button" aria-pressed="false" title="Tạm dừng chuyển động">Tạm dừng</button>
     <button class="icon-btn" id="soundBtn" type="button" aria-pressed="false" title="Bật tiếng nghe lời chúc thu sẵn và giọng đọc tên người thả đèn">Bật tiếng</button>
     <button class="icon-btn" id="hidePanelBtn" type="button" aria-pressed="false" aria-expanded="true" aria-controls="controlPanel" title="Ẩn bảng điều khiển, chỉ giữ lại cảnh sông">Ẩn bảng</button>
+    <button class="icon-btn" id="liteBtn" type="button" aria-pressed="false" title="Chế độ nhẹ: giảm đèn nền, tắt hiệu ứng nặng và giới hạn độ phân giải để chống lag trên máy yếu">Chế độ nhẹ</button>
     <span id="bridgeDot" class="bridge-dot" title="Cầu nối TikTok live" role="status" aria-label="Cầu nối TikTok live: chưa kết nối"></span>
   </div>
 
@@ -737,6 +761,11 @@
         <button class="music-btn" id="ytPlayBtn" type="button">Phát nhạc</button>
         <button class="music-btn stop" id="ytStopBtn" type="button">Dừng nhạc</button>
       </div>
+      <div class="music-vol">
+        <label for="ytVol">Âm lượng nhạc</label>
+        <input id="ytVol" type="range" min="0" max="100" step="1" value="70" aria-label="Âm lượng nhạc nền YouTube" />
+        <output id="ytVolVal" for="ytVol">70%</output>
+      </div>
       <p class="music-msg" id="ytMsg">Dán link video YouTube rồi bấm Phát nhạc — nhạc chạy nền có tiếng trong lúc xem livestream. Nếu trình duyệt chặn phát có tiếng, bấm Phát nhạc lần nữa.</p>
       <div id="ytPlayerWrap" aria-hidden="true"></div>
     </div>
@@ -780,7 +809,7 @@
       viewerEl = $("#viewerCount");
 
   var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var paused = false, soundOn = false, autoSim = true;
+  var paused = false, soundOn = false, autoSim = true, liteMode = false;
   /* Proportional scale of the scene against its 520px design width,
      while the panel is hidden and the scene fills the viewport: 1 in
      the normal layout (and on narrower frames) so nothing shrinks.
@@ -911,6 +940,7 @@
   for (var ai=0; ai<18; ai++) spawnAmbient(true);
 
   function spawnRipple(xPct, yPct, big){
+    if (liteMode) return; /* chế độ nhẹ: bỏ gợn sóng để bớt DOM + animation */
     var r = document.createElement("div");
     r.className = "ripple";
     r.style.left = xPct+"%"; r.style.top = yPct+"%";
@@ -918,6 +948,7 @@
     setTimeout(function(){ r.remove(); }, 2300);
   }
   function spawnBurst(xPct, yPct){
+    if (liteMode) return; /* chế độ nhẹ: bỏ chớp sáng để bớt DOM + animation */
     var b = document.createElement("div");
     b.className = "burst";
     b.style.left = xPct+"%"; b.style.top = yPct+"%";
@@ -1226,7 +1257,7 @@
        case the river stays empty until the next lantern is released */
     var ambient = 0;
     for (var j=0;j<lanterns.length;j++) if (lanterns[j].kind==="ambient") ambient++;
-    if (!ambientPaused) while (ambient < 18){ spawnAmbient(false); ambient++; }
+    if (!ambientPaused) while (ambient < (liteMode ? 8 : 18)){ spawnAmbient(false); ambient++; }
   }
 
   /* ---------- riverside strollers: appear when a guest comments ---------- */
@@ -1254,7 +1285,7 @@
      strollers in the same moment get their own names, never a copy. */
   function spawnWalkers(n, name){
     for (var k=0; k<n; k++){
-      if (walkers.length >= 14) { var oldest = walkers.shift(); oldest.el.remove(); oldest.label.remove(); }
+      if (walkers.length >= (liteMode ? 6 : 14)) { var oldest = walkers.shift(); oldest.el.remove(); oldest.label.remove(); }
       var side = Math.random() < 0.5 ? "left" : "right";
       var el = document.createElement("div");
       el.className = "walker";
@@ -1408,7 +1439,7 @@
       ng.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
       src.connect(lp); lp.connect(ng); ng.connect(fwMaster);
       src.start(t); src.stop(t + 0.75);
-      var n = reduced ? 6 : 12;
+      var n = liteMode ? 4 : (reduced ? 6 : 12);
       for (var k = 0; k < n; k++){
         fwCrackleTick(ctx, 0.08 + Math.random() * 0.55,
           2400 + Math.random() * 2800, 0.02 + Math.random() * 0.05,
@@ -1418,7 +1449,7 @@
   }
   function sizeFireworks(){
     var r = sceneEl.getBoundingClientRect();
-    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    var dpr = liteMode ? 1 : Math.min(2, window.devicePixelRatio || 1);
     fwCanvas.width = Math.max(1, Math.round(r.width * dpr));
     fwCanvas.height = Math.max(1, Math.round(r.height * dpr));
     fwCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1440,7 +1471,7 @@
     fwPlayLaunch();
   }
   function explode(x, y, color){
-    var n = reduced ? 26 : 58;
+    var n = liteMode ? 20 : (reduced ? 26 : 58);
     for (var i=0; i<n; i++){
       var a = (Math.PI*2 * i)/n + rand(-0.14, 0.14);
       var sp = rand(0.35, 1) * (reduced ? 1.4 : 2.1);
@@ -1455,20 +1486,23 @@
     var w = fwCanvas.clientWidth || sceneEl.clientWidth || 400;
     var h = fwCanvas.clientHeight || sceneEl.clientHeight || 700;
     fwCtx.clearRect(0, 0, w, h);
+    fwCtx.shadowBlur = 0; /* không bao giờ dùng shadowBlur — hiệu ứng canvas tốn kém nhất; chế độ nhẹ còn bỏ cả vệt tên lửa */
     for (var ri=fwRockets.length-1; ri>=0; ri--){
       var R = fwRockets[ri];
       R.trail.push({x:R.x, y:R.y});
-      if (R.trail.length > 7) R.trail.shift();
+      if (R.trail.length > (liteMode ? 3 : 7)) R.trail.shift();
       R.y += R.vy * dt;
       R.vy *= (1 - 0.25*dt);
       fwCtx.globalAlpha = 1;
-      fwCtx.strokeStyle = R.color; fwCtx.lineWidth = 1.4;
-      fwCtx.beginPath();
-      for (var t=0; t<R.trail.length; t++){
-        var tp = R.trail[t];
-        if (t===0) fwCtx.moveTo(tp.x, tp.y); else fwCtx.lineTo(tp.x, tp.y);
+      if (!liteMode){
+        fwCtx.strokeStyle = R.color; fwCtx.lineWidth = 1.4;
+        fwCtx.beginPath();
+        for (var t=0; t<R.trail.length; t++){
+          var tp = R.trail[t];
+          if (t===0) fwCtx.moveTo(tp.x, tp.y); else fwCtx.lineTo(tp.x, tp.y);
+        }
+        fwCtx.stroke();
       }
-      fwCtx.stroke();
       fwCtx.fillStyle = "#fff6d8";
       fwCtx.beginPath(); fwCtx.arc(R.x, R.y, 2.2, 0, Math.PI*2); fwCtx.fill();
       if (R.y <= R.targetY){
@@ -1493,6 +1527,7 @@
   requestAnimationFrame(fireworksLoop);
   function celebrateFireworks(bursts){
     var n = bursts || 7;
+    if (liteMode) n = Math.min(n, 4); /* chế độ nhẹ: ít đợt nổ hơn, mỗi đợt cũng ít hạt hơn (xem explode) */
     for (var i=0; i<n; i++){
       (function(k){ setTimeout(launchRocket, k * 320); })(i);
     }
@@ -1611,6 +1646,10 @@
     audioDone = false;
     speakingText.textContent = (key.indexOf("lantern-") === 0 ? "Giọng đọc: " : "Đang phát lời chúc: ") + rec.text;
     speakingEl.classList.add("show");
+    /* Ducking: nhạc nền đang phát thì nhỏ xuống 25 để giọng chúc
+       thu sẵn nghe rõ; advanceAudio() trả nhạc về mức đã chọn khi
+       giọng phát xong. duckMusic() khai báo ở cụm nhạc YouTube. */
+    duckMusic();
     audioEl.src = rec.src;
     var played = audioEl.play();
     if (played && played.catch) played.catch(function(){ advanceAudio(); });
@@ -1620,6 +1659,9 @@
     audioDone = true;
     audioPlaying = false;
     speakingEl.classList.remove("show");
+    /* Chỉ trả nhạc về mức cũ khi hết hàng đợi giọng nói: còn giọng
+       chờ thì pumpAudio() dưới đây sẽ duck tiếp, khỏi nhấp nhô. */
+    if (!audioQueue.length) unduckMusic();
     pumpAudio();
   }
   audioEl.addEventListener("ended", advanceAudio);
@@ -1634,6 +1676,7 @@
       audioPlaying = false;
       audioEl.pause();
       speakingEl.classList.remove("show");
+      unduckMusic(); /* tắt tiếng giữa chừng thì nhạc về mức đã chọn ngay */
       /* silence any fireworks already in flight, too */
       if (fwAudioCtx && fwAudioCtx.suspend){
         try { fwAudioCtx.suspend(); } catch (e) {}
@@ -1680,6 +1723,68 @@
   }
   hidePanelBtn.addEventListener("click", function(){ setPanelHidden(!stage.classList.contains("panel-hidden")); });
   showPanelBtn.addEventListener("click", function(){ setPanelHidden(false); });
+
+  /* ?live=1: mở link kèm tham số này thì ẩn bảng ngay khi tải xong,
+     cảnh tràn full màn hình luôn — y hệt đã bấm "Ẩn bảng", không
+     cần thao tác tay trong TikTok Live Studio. Nút tròn nhỏ ở góc
+     dưới cảnh vẫn hiện để bấm hiện lại bảng. Không có tham số (hoặc
+     khác 1) thì mở thường, bảng hiện như cũ. Chỉ đọc tham số truy
+     vấn để quyết định hiển thị, không dùng địa chỉ trang vào việc
+     nào khác. */
+  (function(){
+    var live = false;
+    try {
+      live = new URLSearchParams(window.location.search).get("live") === "1";
+    } catch (e) {
+      try { live = /(?:[?&])live=1(?:&|#|$)/.test(window.location.search || ""); } catch (e2) {}
+    }
+    if (!live){
+      try { live = /(?:[?&#])live=1(?:&|#|$)/.test(window.location.hash || ""); } catch (e3) {}
+    }
+    if (live) setPanelHidden(true);
+  })();
+
+  /* ---------- chế độ nhẹ: bật/tắt, mặc định TẮT (đầy đủ) ----------
+     Chỉ đổi hiệu năng hiển thị: class lite-mode tắt các lớp vẽ/CSS
+     tốn kém, DPR về 1 (sizeFireworks vẽ lại canvas), số đèn nền và
+     người đi bộ đang hiện được cắt về mức nhẹ, nhịp tự sinh người
+     đi bộ giãn gấp đôi (simJoin bỏ qua 1 trong 2 lượt), pháo hoa ít hạt hơn.
+     Không động tới thuyền, đèn, quà, giọng đọc, cầu nối, trạng thái
+     tạm dừng/âm thanh/mô phỏng hay trạng thái ẩn bảng — tắt chế độ
+     nhẹ là mọi thứ tự đầy lại (đèn nền tự sinh lại trong
+     updateLanterns, DPR về tối đa 2 ở lần resize/vẽ lại tiếp theo). */
+  var liteBtn = $("#liteBtn");
+  function setLiteMode(on){
+    liteMode = on;
+    stage.classList.toggle("lite-mode", on);
+    document.body.classList.toggle("lite-mode", on);
+    sizeFireworks(); /* áp DPR=1 khi bật, trả về tối đa 2 khi tắt */
+    liteBtn.setAttribute("aria-pressed", String(on));
+    liteBtn.title = on
+      ? "Đang bật Chế độ nhẹ — bấm để về chế độ đầy đủ"
+      : "Chế độ nhẹ: giảm đèn nền, tắt hiệu ứng nặng và giới hạn độ phân giải để chống lag trên máy yếu";
+    if (on){
+      /* cắt ngay số đèn nền đang trôi về 8 (chỉ đèn nền, giữ nguyên
+         đèn của khách và đèn quà), người đi bộ về tối đa 6 */
+      var ambientLeft = 0;
+      for (var ai2=0; ai2<lanterns.length; ai2++){
+        if (lanterns[ai2].kind==="ambient") ambientLeft++;
+      }
+      for (var li=0; li<lanterns.length && ambientLeft > 8; li++){
+        if (lanterns[li].kind==="ambient"){
+          lanterns[li].el.remove();
+          lanterns.splice(li, 1);
+          li--; ambientLeft--;
+        }
+      }
+      while (walkers.length > 6){
+        var oldestW = walkers.shift();
+        oldestW.el.remove(); oldestW.label.remove();
+      }
+      if (fwSparks.length > 80) fwSparks.splice(0, fwSparks.length - 80);
+    }
+  }
+  liteBtn.addEventListener("click", function(){ setLiteMode(!liteMode); });
 
   /* ---------- feed ---------- */
   function fadeOutFeedItem(li){
@@ -1884,10 +1989,12 @@
      origin that was sent and whether a referrer was present, so a
      remaining failure can be diagnosed instead of guessed at. */
   var ytInput = $("#ytInput"), ytMsg = $("#ytMsg"), ytState = $("#musicState"),
-      ytWrap = $("#ytPlayerWrap"), ytPlaying = false;
+      ytWrap = $("#ytPlayerWrap"), ytPlaying = false,
+      ytVolEl = $("#ytVol"), ytVolVal = $("#ytVolVal");
   var ytPlayer = null, ytPlayerReady = false, ytCurrentKey = "", ytEverPlayed = false,
       ytApiLoading = false, ytApiCallbacks = [], ytApiTimer = null, ytApiDone = false,
-      ytPendingPlay = false, ytCurrentId = "";
+      ytPendingPlay = false, ytCurrentId = "",
+      ytVolume = 70, ytDucked = false;
   function parseYouTube(raw){
     var s = (raw||"").trim();
     if (!s) return null;
@@ -1949,13 +2056,52 @@
     ytState.textContent = text;
     ytState.classList.toggle("playing", !!playing);
   }
+  /* ---------- Ducking nhạc nền khi giọng chúc thu sẵn đang phát ----------
+     Nhạc YouTube trước đây bị ép setVolume(100) nên át hẳn giọng
+     chúc (audio#blessingAudio, âm lượng cố định). Giờ nhạc mặc định
+     ở mức người dùng chọn trên thanh trượt (70), và mỗi lần giọng
+     chúc bắt đầu phát (pumpAudio) thì nhạc đang phát được hạ xuống
+     25; khi giọng xong (advanceAudio / tắt tiếng) nhạc trả về đúng
+     mức đã chọn. Các hàm này là function declaration nên pumpAudio/
+     advanceAudio/setSound ở trên gọi được dù khai báo ở đây. */
+  function ytSetVolume(v){
+    try { if (ytPlayer && ytPlayerReady && ytPlayer.setVolume) ytPlayer.setVolume(v); } catch (e) {}
+  }
+  function ytIsPlaying(){
+    try {
+      return !!(ytPlayer && ytPlayerReady && ytPlayer.getPlayerState &&
+        ytPlayer.getPlayerState() === ytStateCode("PLAYING"));
+    } catch (e) { return false; }
+  }
+  function duckMusic(){
+    /* Hạ xuống 25 nhưng không bao giờ to hơn mức người dùng chọn
+       (kéo về 0 thì nhạc vẫn im trong lúc giọng phát). */
+    if (ytIsPlaying()){ ytSetVolume(Math.min(25, ytVolume)); ytDucked = true; }
+  }
+  function unduckMusic(){
+    if (ytDucked){ ytDucked = false; ytSetVolume(ytVolume); }
+  }
+  /* Mức nhạc khi bắt đầu phát: đang có giọng chúc thì phát nhỏ sẵn
+     ở 25 (và đánh dấu đang duck để advanceAudio trả về mức chọn),
+     không thì ở mức người dùng chọn trên thanh trượt. */
+  function ytStartVolume(){
+    if (audioPlaying){ ytDucked = true; return Math.min(25, ytVolume); }
+    return ytVolume;
+  }
+  function applyYtVolume(){
+    if (ytVolVal) ytVolVal.textContent = ytVolume + "%";
+    /* Đang duck thì chỉ ghi nhớ mức mới, để advanceAudio trả về
+       đúng mức này khi giọng xong — không phá mức 25 lúc đang nói. */
+    if (!ytDucked) ytSetVolume(ytVolume);
+  }
   /* The one call that actually starts sound: direct, from a user
-     gesture where possible, never muted, full volume. */
+     gesture where possible, never muted, at the user-chosen volume
+     (70 by default) — or ducked to 25 while a blessing voice plays. */
   function startAudiblePlayback(){
     if (!ytPlayer || !ytPlayerReady) return false;
     try {
       if (ytPlayer.isMuted && ytPlayer.isMuted()) ytPlayer.unMute();
-      if (ytPlayer.setVolume) ytPlayer.setVolume(100);
+      ytSetVolume(ytStartVolume());
       ytPlayer.playVideo();
       return true;
     } catch (e) { return false; }
@@ -1968,7 +2114,7 @@
     if (!ytPlayer || !ytPlayerReady) return false;
     try {
       if (ytPlayer.isMuted && ytPlayer.isMuted()) ytPlayer.unMute();
-      if (ytPlayer.setVolume) ytPlayer.setVolume(100);
+      ytSetVolume(ytStartVolume());
       if (ytCurrentId && ytPlayer.loadVideoById){
         ytPlayer.loadVideoById({ videoId: ytCurrentId, startSeconds: 0 });
       } else {
@@ -2194,6 +2340,12 @@
   $("#ytPlayBtn").addEventListener("click", playMusic);
   $("#ytStopBtn").addEventListener("click", stopMusic);
   ytInput.addEventListener("keydown", function(e){ if (e.key === "Enter"){ e.preventDefault(); playMusic(); } });
+  /* Thanh trượt âm lượng nhạc: mặc định 70, áp ngay vào player đang
+     phát (trừ lúc đang duck thì chỉ ghi nhớ, giọng xong mới trả về). */
+  if (ytVolEl) ytVolEl.addEventListener("input", function(){
+    ytVolume = clamp(parseInt(ytVolEl.value, 10) || 0, 0, 100);
+    applyYtVolume();
+  });
 
   $("#releaseForm").addEventListener("submit", function(e){
     e.preventDefault();
@@ -2249,8 +2401,17 @@
      night means visibly more strollers strolling both banks. This is
      the same simulation as the comments: real TikTok join events
      still need the live-listener bridge noted in the help sheet. */
+  /* Đếm lượt simJoin để chế độ nhẹ kéo dài nhịp tự sinh đúng gấp
+     đôi: hẹn giờ vẫn 6 giây, nhưng khi liteMode BẬT thì chỉ lượt
+     chẵn mới sinh người đi bộ (hiệu quả 12 giây/lần). Người đi bộ
+     từ bình luận/quà tặng/lên thuyền (releaseLantern, sendGift,
+     boardBoat, cầu nối) không qua đây nên không bị ảnh hưởng; giới
+     hạn 6 người đồng thời vẫn nằm trong spawnWalkers. */
+  var joinTick = 0;
   function simJoin(){
     if (!autoSim || paused) return;
+    joinTick++;
+    if (liteMode && (joinTick % 2 === 1)) return; /* chế độ nhẹ: bỏ qua 1 trong 2 lần sinh tự động */
     var group = Math.random() < 0.25 ? 2 : 1;
     for (var ji=0; ji<group; ji++){
       viewers += 1;
